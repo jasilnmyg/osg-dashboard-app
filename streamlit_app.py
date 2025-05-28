@@ -29,7 +29,6 @@ st.set_page_config(page_title="Sales Reports Dashboard", layout="wide")
 tab1, tab2, tab3 = st.tabs(["📋 Report 1: Sales Summary with RBM/BDM", "📋 Report 2: Store Summary","📊 OSG DATA Mapping"])
 
 # --------------------------- REPORT 1 TAB ---------------------------
-# --------------------------- REPORT 1 TAB ---------------------------
 with tab1:
     st.header("Report 1: Sales Summary with RBM and BDM")
     st.markdown("""
