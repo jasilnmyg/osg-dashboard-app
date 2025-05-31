@@ -269,9 +269,9 @@ with tab1:
         <div class="info-box">
             <strong>Instructions:</strong> Upload the following three files to generate the sales summary report:
             <ul>
-                <li><strong>Book1.xlsx</strong> - Sales data with DATE, Store, QUANTITY, AMOUNT fields</li>
-                <li><strong>Future store list.xlsx</strong> - Reference list of stores</li>
-                <li><strong>RBM and BDM file</strong> - Mapping of Store to RBM and BDM</li>
+                <li><strong>Full Month sales Data</strong></li>
+                <li><strong>myG All Store List</strong></li>
+                <li><strong>Store,RBM,BDM List</strong></li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -285,17 +285,17 @@ with tab1:
     with st.container():
         st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
         book1_file = st.file_uploader(
-            "Upload Book1.xlsx (full month sales data)", 
+            "Upload full month sales data", 
             type=["xlsx"],
             key="book1_uploader"
         )
         store_list_file = st.file_uploader(
-            "Upload Future Store List", 
+            "Upload myG All Store List", 
             type=["xlsx"],
             key="store_list_uploader"
         )
         rbm_bdm_file = st.file_uploader(
-            "Upload RBM and BDM Mapping File", 
+            "Upload Store,RBM,BDM List", 
             type=["xlsx"],
             key="rbm_bdm_uploader"
         )
@@ -502,15 +502,15 @@ with tab1:
 
 # --------------------------- REPORT 2 TAB ---------------------------
 with tab2:
-    st.markdown('<h1 class="header">OSG Future Store Report</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="header">OSG Day View Report</h1>', unsafe_allow_html=True)
     
     with st.container():
         st.markdown("""
         <div class="info-box">
             <strong>Instructions:</strong> Upload the following files to generate the store summary report:
             <ul>
-                <li><strong>Book1.xlsx</strong> - Sales data with Store, QUANTITY, AMOUNT fields</li>
-                <li><strong>Future store list.xlsx</strong> - Store master list</li>
+                <li><strong>Daily Sales Report</strong></li>
+                <li><strong>myG Future Store List</strong></li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -519,12 +519,12 @@ with tab2:
     with st.container():
         st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
         book2_file = st.file_uploader(
-            "Upload Book1.xlsx", 
+            "Upload Daily Sales Report", 
             type=["xlsx"],
             key="r2_book1"
         )
         store_list_file = st.file_uploader(
-            "Upload Future Store List", 
+            "Upload myG Future Store List", 
             type=["xlsx"],
             key="r2_store_list"
         )
