@@ -36,7 +36,7 @@ st.markdown("""
   --neon-pink: #ff00ff;
   --neon-purple: #9d00ff;
   --text-primary: #e0e0ff;
-  --text-secondary: #ffffff;
+  --text-secondary: #f484fa;
   --glow-shadow: 0 0 8px var(--neon-blue);
   --btn-glow: 0 0 12px var(--neon-pink);
 }
