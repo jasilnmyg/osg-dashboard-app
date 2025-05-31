@@ -259,11 +259,10 @@ tab_icons = {
 tab1,tab2,tab3 = st.tabs(list(tab_icons.keys()))
 
 
-
 # --------------------------- REPORT 1 TAB ---------------------------
 with tab1:
     st.markdown('<h1 class="header">OSG All Store Report</h1>', unsafe_allow_html=True)
-    
+
     with st.container():
         st.markdown("""
         <div class="info-box">
@@ -275,217 +274,169 @@ with tab1:
             </ul>
         </div>
         """, unsafe_allow_html=True)
-    
-    # Date selector at the top
+
     col1, col2 = st.columns([1, 3])
     with col1:
         report_date = st.date_input("Select report date", value=datetime.today(), key="report1_date")
-    
-    # File upload section
+
     with st.container():
         st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
-        book1_file = st.file_uploader(
-            "Upload full month sales data", 
-            type=["xlsx"],
-            key="book1_uploader"
-        )
-        store_list_file = st.file_uploader(
-            "Upload myG All Store List", 
-            type=["xlsx"],
-            key="store_list_uploader"
-        )
-        rbm_bdm_file = st.file_uploader(
-            "Upload Store,RBM,BDM List", 
-            type=["xlsx"],
-            key="rbm_bdm_uploader"
-        )
+        book1_file = st.file_uploader("Upload full month sales data", type=["xlsx"], key="book1_uploader")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if book1_file and store_list_file and rbm_bdm_file:
+    # Load default files
+    try:
+        store_list_file = "/workspaces/osg-dashboard-app/Dedault/myG All Store.xlsx"
+        rbm_bdm_file = "/workspaces/osg-dashboard-app/Dedault/RBM,BDM,BRANCH.xlsx"
+        future_store_df = pd.read_excel(store_list_file)
+        rbm_bdm_df = pd.read_excel(rbm_bdm_file)
+        st.success("✅ Loaded default Future Store List.")
+    except Exception as e:
+        st.error(f"Error loading default store or RBM/BDM file: {e}")
+        st.stop()
+
+    if book1_file:
         with st.spinner('Processing data...'):
-            # Load and clean data
-            book1_df = pd.read_excel(book1_file)
-            future_store_df = pd.read_excel(store_list_file)
-            rbm_bdm_df = pd.read_excel(rbm_bdm_file)
+            try:
+                book1_df = pd.read_excel(book1_file)
+                book1_df.rename(columns={'Branch': 'Store'}, inplace=True)
+                rbm_bdm_df.rename(columns={'Branch': 'Store'}, inplace=True)
 
-            # Rename 'Branch' to 'Store'
-            book1_df.rename(columns={'Branch': 'Store'}, inplace=True)
-            rbm_bdm_df.rename(columns={'Branch': 'Store'}, inplace=True)
+                # Parse and filter
+                book1_df['DATE'] = pd.to_datetime(book1_df['DATE'], dayfirst=True, errors='coerce')
+                book1_df = book1_df.dropna(subset=['DATE'])
+                today = pd.to_datetime(report_date)
 
-            # Parse DATE
-            book1_df['DATE'] = pd.to_datetime(book1_df['DATE'], dayfirst=True, errors='coerce')
-            book1_df = book1_df.dropna(subset=['DATE'])
+                mtd_df = book1_df[book1_df['DATE'].dt.month == today.month]
+                today_df = mtd_df[mtd_df['DATE'].dt.date == today.date()]
 
-            # Use selected report_date for filtering
-            today = pd.to_datetime(report_date)
+                today_agg = today_df.groupby('Store', as_index=False).agg({'QUANTITY': 'sum', 'AMOUNT': 'sum'}).rename(columns={'QUANTITY': 'FTD Count', 'AMOUNT': 'FTD Amount'})
+                mtd_agg = mtd_df.groupby('Store', as_index=False).agg({'QUANTITY': 'sum', 'AMOUNT': 'sum'}).rename(columns={'QUANTITY': 'MTD Count', 'AMOUNT': 'MTD Amount'})
 
-            mtd_df = book1_df[book1_df['DATE'].dt.month == today.month]
-            today_df = mtd_df[mtd_df['DATE'].dt.date == today.date()]
+                all_store_names = pd.Series(pd.concat([future_store_df['Store'], book1_df['Store']]).unique(), name='Store')
+                report_df = pd.DataFrame(all_store_names)
+                report_df = report_df.merge(today_agg, on='Store', how='left').merge(mtd_agg, on='Store', how='left')
+                report_df[['FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']] = report_df[['FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']].fillna(0).astype(int)
+                report_df = report_df.merge(rbm_bdm_df[['Store', 'RBM', 'BDM']], on='Store', how='left')
+                report_df = report_df.sort_values('MTD Amount', ascending=False)
 
-            # Aggregate
-            today_agg = today_df.groupby('Store', as_index=False).agg({'QUANTITY': 'sum', 'AMOUNT': 'sum'}).rename(columns={'QUANTITY': 'FTD Count', 'AMOUNT': 'FTD Amount'})
-            mtd_agg = mtd_df.groupby('Store', as_index=False).agg({'QUANTITY': 'sum', 'AMOUNT': 'sum'}).rename(columns={'QUANTITY': 'MTD Count', 'AMOUNT': 'MTD Amount'})
+                # Excel Report
+                header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+                header_font = Font(bold=True, color="FFFFFF")
+                data_fill = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
+                zero_qty_fill = PatternFill(start_color="F4CCCC", end_color="F4CCCC", fill_type="solid")
+                total_fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
+                border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
 
-            # Merge all unique stores
-            all_store_names = pd.Series(pd.concat([future_store_df['Store'], book1_df['Store']]).unique(), name='Store')
-            report_df = pd.DataFrame(all_store_names)
+                columns_to_use = ['Store', 'FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']
 
-            # Merge Today, MTD, and RBM/BDM info
-            report_df = report_df.merge(today_agg, on='Store', how='left').merge(mtd_agg, on='Store', how='left')
-            report_df[['FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']] = report_df[['FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']].fillna(0).astype(int)
-            report_df = report_df.merge(rbm_bdm_df[['Store', 'RBM', 'BDM']], on='Store', how='left')
-
-            # Sort full report
-            report_df = report_df.sort_values('MTD Amount', ascending=False)
-
-            # --- Excel generation ---
-            header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
-            header_font = Font(bold=True, color="FFFFFF")
-            data_fill = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
-            zero_qty_fill = PatternFill(start_color="F4CCCC", end_color="F4CCCC", fill_type="solid")
-            total_fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
-            border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-
-            columns_to_use = ['Store', 'FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']
-
-            def write_to_sheet(ws, data):
-                for r_idx, row in enumerate(dataframe_to_rows(data[columns_to_use], index=False, header=True), 1):
-                    for c_idx, value in enumerate(row, 1):
-                        cell = ws.cell(row=r_idx, column=c_idx, value=value)
-                        if r_idx == 1:
-                            cell.fill = header_fill
-                            cell.font = header_font
-                        else:
-                            ftd_qty = row[1] if len(row) > 1 else 0
-                            mtd_qty = row[3] if len(row) > 3 else 0
-                            if ftd_qty == 0 or mtd_qty == 0:
-                                cell.fill = zero_qty_fill
+                def write_to_sheet(ws, data):
+                    for r_idx, row in enumerate(dataframe_to_rows(data[columns_to_use], index=False, header=True), 1):
+                        for c_idx, value in enumerate(row, 1):
+                            cell = ws.cell(row=r_idx, column=c_idx, value=value)
+                            if r_idx == 1:
+                                cell.fill = header_fill
+                                cell.font = header_font
                             else:
-                                cell.fill = data_fill
+                                ftd_qty = row[1] if len(row) > 1 else 0
+                                mtd_qty = row[3] if len(row) > 3 else 0
+                                cell.fill = zero_qty_fill if ftd_qty == 0 or mtd_qty == 0 else data_fill
+                            cell.border = border
+                            cell.alignment = Alignment(horizontal='center')
+                    total_row_idx = ws.max_row + 1
+                    ws.cell(row=total_row_idx, column=1, value="TOTAL").fill = total_fill
+                    ws.cell(row=total_row_idx, column=1).font = Font(bold=True)
+                    ws.cell(row=total_row_idx, column=1).alignment = Alignment(horizontal='center')
+                    ws.cell(row=total_row_idx, column=1).border = border
+
+                    for col_idx in range(2, len(columns_to_use) + 1):
+                        total_value = data[columns_to_use[col_idx - 1]].sum()
+                        cell = ws.cell(row=total_row_idx, column=col_idx, value=int(total_value))
+                        cell.fill = total_fill
+                        cell.font = Font(bold=True)
                         cell.border = border
                         cell.alignment = Alignment(horizontal='center')
 
-                # Add total row
-                total_row_idx = ws.max_row + 1
-                ws.cell(row=total_row_idx, column=1, value="TOTAL").fill = total_fill
-                ws.cell(row=total_row_idx, column=1).font = Font(bold=True)
-                ws.cell(row=total_row_idx, column=1).alignment = Alignment(horizontal='center')
-                ws.cell(row=total_row_idx, column=1).border = border
+                wb = Workbook()
+                wb.remove(wb.active)
+                ws = wb.create_sheet(title="All_Stores")
+                write_to_sheet(ws, report_df)
 
-                # Leave blank for second column
-                ws.cell(row=total_row_idx, column=2, value="").fill = total_fill
-                ws.cell(row=total_row_idx, column=2).font = Font(bold=True)
-                ws.cell(row=total_row_idx, column=2).alignment = Alignment(horizontal='center')
-                ws.cell(row=total_row_idx, column=2).border = border
+                for rbm in report_df['RBM'].dropna().unique():
+                    rbm_data = report_df[report_df['RBM'] == rbm].sort_values('MTD Amount', ascending=False)
+                    ws_rbm = wb.create_sheet(title=rbm[:30])
+                    write_to_sheet(ws_rbm, rbm_data)
 
-                # Add totals for FTD Count, Amount, MTD Count, Amount
-                for col_idx in range(2, len(columns_to_use) + 1):
-                    total_value = data[columns_to_use[col_idx - 1]].sum()
-                    cell = ws.cell(row=total_row_idx, column=col_idx, value=int(total_value))
-                    cell.fill = total_fill
-                    cell.font = Font(bold=True)
-                    cell.border = border
-                    cell.alignment = Alignment(horizontal='center')
+                excel_buffer = BytesIO()
+                wb.save(excel_buffer)
+                excel_buffer.seek(0)
 
-            wb = Workbook()
-            default_sheet = wb.active
-            wb.remove(default_sheet)
+                # PDF Reports
+                styles = getSampleStyleSheet()
+                base_table_style = TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+                ])
+                col_widths = [100*mm/2.54, 70*mm/2.54, 60*mm/2.54, 60*mm/2.54, 60*mm/2.54, 60*mm/2.54]
 
-            ws = wb.create_sheet(title="All_Stores")
-            write_to_sheet(ws, report_df)
+                pdf_files = []
+                for rbm in report_df['RBM'].dropna().unique():
+                    rbm_data = report_df[report_df['RBM'] == rbm].sort_values('MTD Amount', ascending=False)
+                    if rbm_data.empty:
+                        continue
+                    pdf_buffer = BytesIO()
+                    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
+                    elements = [Paragraph(f"<b><font size=14>{rbm} Report</font></b>", styles['Title']),
+                                Paragraph(f"Generated on: {datetime.now().strftime('%d-%m-%Y')}", styles['Normal']),
+                                Spacer(1, 12)]
+                    table_data = [['Store', 'BDM', 'FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']]
+                    cell_styles = []
 
-            for rbm in report_df['RBM'].dropna().unique():
-                rbm_data = report_df[report_df['RBM'] == rbm].sort_values('MTD Amount', ascending=False)
-                ws_rbm = wb.create_sheet(title=rbm[:30])  # Sheet name limit
-                write_to_sheet(ws_rbm, rbm_data)
+                    for row_idx, (_, row) in enumerate(rbm_data.iterrows(), start=1):
+                        table_row = [row['Store'], row['BDM'], int(row['FTD Count']), int(row['FTD Amount']), int(row['MTD Count']), int(row['MTD Amount'])]
+                        table_data.append(table_row)
+                        if row['FTD Count'] == 0:
+                            cell_styles.append(('TEXTCOLOR', (2, row_idx), (2, row_idx), colors.red))
+                        if row['MTD Count'] == 0:
+                            cell_styles.append(('TEXTCOLOR', (4, row_idx), (4, row_idx), colors.red))
 
-            # Save workbook to BytesIO
-            excel_buffer = BytesIO()
-            wb.save(excel_buffer)
-            excel_buffer.seek(0)
+                    total_row = ['TOTAL', '', int(rbm_data['FTD Count'].sum()), int(rbm_data['FTD Amount'].sum()),
+                                 int(rbm_data['MTD Count'].sum()), int(rbm_data['MTD Amount'].sum())]
+                    table_data.append(total_row)
+                    total_row_idx = len(table_data) - 1
+                    cell_styles.extend([
+                        ('BACKGROUND', (0, total_row_idx), (-1, total_row_idx), colors.HexColor('#FFD966')),
+                        ('FONTNAME', (0, total_row_idx), (-1, total_row_idx), 'Helvetica-Bold')
+                    ])
+                    table = Table(table_data, colWidths=col_widths)
+                    table.setStyle(TableStyle(base_table_style.getCommands() + cell_styles))
+                    elements.append(table)
+                    doc.build(elements)
+                    pdf_buffer.seek(0)
+                    pdf_files.append((f"{rbm}_Report.pdf", pdf_buffer.read()))
 
-            # --- PDF generation ---
-            styles = getSampleStyleSheet()
-            base_table_style = TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
-            ])
+            except Exception as e:
+                st.error(f"Error during processing: {e}")
+                st.stop()
 
-            col_widths = [100*mm/2.54, 70*mm/2.54, 60*mm/2.54, 60*mm/2.54, 60*mm/2.54, 60*mm/2.54]
-
-            rbm_list = report_df['RBM'].dropna().unique()
-
-            pdf_files = []
-            for rbm in rbm_list:
-                rbm_data = report_df[report_df['RBM'] == rbm].sort_values(by='MTD Amount', ascending=False)
-                if rbm_data.empty:
-                    continue
-
-                pdf_buffer = BytesIO()
-                doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
-                elements = []
-
-                elements.append(Paragraph(f"<b><font size=14>{rbm} Report</font></b>", styles['Title']))
-                elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%d-%m-%Y')}", styles['Normal']))
-                elements.append(Spacer(1, 12))
-
-                table_data = [['Store', 'BDM', 'FTD Count', 'FTD Amount', 'MTD Count', 'MTD Amount']]
-                cell_styles = []
-
-                for row_idx, (_, row) in enumerate(rbm_data.iterrows(), start=1):
-                    table_row = [
-                        row['Store'], row['BDM'],
-                        int(row['FTD Count']), int(row['FTD Amount']),
-                        int(row['MTD Count']), int(row['MTD Amount'])
-                    ]
-                    table_data.append(table_row)
-
-                    if row['FTD Count'] == 0:
-                        cell_styles.append(('TEXTCOLOR', (2, row_idx), (2, row_idx), colors.red))
-                    if row['MTD Count'] == 0:
-                        cell_styles.append(('TEXTCOLOR', (4, row_idx), (4, row_idx), colors.red))
-
-                total_row = [
-                    'TOTAL', '',
-                    int(rbm_data['FTD Count'].sum()), int(rbm_data['FTD Amount'].sum()),
-                    int(rbm_data['MTD Count'].sum()), int(rbm_data['MTD Amount'].sum())
-                ]
-                table_data.append(total_row)
-                total_row_idx = len(table_data) - 1
-                cell_styles.append(('BACKGROUND', (0, total_row_idx), (-1, total_row_idx), colors.HexColor('#FFD966')))
-                cell_styles.append(('FONTNAME', (0, total_row_idx), (-1, total_row_idx), 'Helvetica-Bold'))
-
-                table = Table(table_data, colWidths=col_widths)
-                table.setStyle(TableStyle(base_table_style.getCommands() + cell_styles))
-
-                elements.append(table)
-
-                doc.build(elements)
-                pdf_buffer.seek(0)
-
-                pdf_files.append((f"{rbm}_Report.pdf", pdf_buffer.read()))
-
-        # Download section
+        # --- Download Buttons ---
         with st.container():
             st.markdown('<div class="download-section">', unsafe_allow_html=True)
             st.markdown('<h3>Download Reports</h3>', unsafe_allow_html=True)
-            
             col1, col2 = st.columns(2)
             with col1:
                 st.download_button(
                     label="📥 Download Excel Report (All Data)",
                     data=excel_buffer,
                     file_name=f"Sales_Report_{report_date.strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    help="Download complete report in Excel format"
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
-            
             with col2:
                 st.markdown('<p style="margin-top: 10px;">Individual PDF Reports by RBM:</p>', unsafe_allow_html=True)
                 for filename, pdf_data in pdf_files:
@@ -497,24 +448,26 @@ with tab1:
                         key=f"pdf_{filename}"
                     )
             st.markdown('</div>', unsafe_allow_html=True)
+
     else:
-        st.info("ℹ️ Please upload all three required Excel files to generate reports.")
+        st.info("ℹ️ Please upload all required files to generate the report.")
+
 
 # --------------------------- REPORT 2 TAB ---------------------------
 with tab2:
     st.markdown('<h1 class="header">OSG Day View Report</h1>', unsafe_allow_html=True)
-    
+
     with st.container():
         st.markdown("""
         <div class="info-box">
-            <strong>Instructions:</strong> Upload the following files to generate the store summary report:
+            <strong>Instructions:</strong> Upload the following file to generate the store summary report:
             <ul>
                 <li><strong>Daily Sales Report</strong></li>
-                <li><strong>myG Future Store List</strong></li>
+                <li><strong>myG Future Store List</strong> is loaded by default.</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-    
+
     # File upload section
     with st.container():
         st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
@@ -523,18 +476,15 @@ with tab2:
             type=["xlsx"],
             key="r2_book1"
         )
-        store_list_file = st.file_uploader(
-            "Upload myG Future Store List", 
-            type=["xlsx"],
-            key="r2_store_list"
-        )
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if book2_file and store_list_file:
+    # Load default future store list
+    future_df = pd.read_excel("/workspaces/osg-dashboard-app/Dedault/Future Store List.xlsx")
+    st.success("✅ Loaded default Future Store List.")
+
+    if book2_file:
         with st.spinner('Processing data...'):
             book2_df = pd.read_excel(book2_file)
-            future_df = pd.read_excel(store_list_file)
-
             book2_df.rename(columns={'Branch': 'Store'}, inplace=True)
             agg = book2_df.groupby('Store', as_index=False).agg({'QUANTITY': 'sum', 'AMOUNT': 'sum'})
 
@@ -592,8 +542,7 @@ with tab2:
                 return buf
 
             excel_buf2 = generate_report2_excel(final_df)
-        
-        # Download section
+
         with st.container():
             st.markdown('<div class="download-section">', unsafe_allow_html=True)
             st.download_button(
@@ -605,7 +554,8 @@ with tab2:
             )
             st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.info("ℹ️ Please upload both required files to generate the store summary report.")
+        st.info("ℹ️ Please upload the Daily Sales Report to generate the store summary.")
+
 
 # --------------------------- REPORT 3 TAB ---------------------------
 with tab3:
