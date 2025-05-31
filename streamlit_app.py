@@ -17,7 +17,7 @@ import io
 import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="Neon Sales Matrix",
+    page_title="OSG DASHBOARD",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -250,9 +250,9 @@ div[data-testid="stDataFrameContainer"] {
 
 # Neon glowing icons as SVG for tabs (can also use emojis or images)
 tab_icons = {
-    "🧩 Data Hub": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2h-2v10h2V2zM6 9h2v13H6V9zm10 0h2v13h-2V9z"/></svg>""",
-    "📊 Sales Matrix": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h2v4H3v-4zm4-6h2v10H7V11zm4-4h2v14h-2V7zm4 6h2v8h-2v-8z"/></svg>""",
-    "🔍 Data Mapper": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zM9.5 14C7.57 14 6 12.43 6 10.5S7.57 7 9.5 7 13 8.57 13 10.5 11.43 14 9.5 14z"/></svg>"""
+    "📊 OSG REPORT 1": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2h-2v10h2V2zM6 9h2v13H6V9zm10 0h2v13h-2V9z"/></svg>""",
+    "📊 OSG REPORT 2": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h2v4H3v-4zm4-6h2v10H7V11zm4-4h2v14h-2V7zm4 6h2v8h-2v-8z"/></svg>""",
+    "🔗 Data Mapping": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zM9.5 14C7.57 14 6 12.43 6 10.5S7.57 7 9.5 7 13 8.57 13 10.5 11.43 14 9.5 14z"/></svg>"""
 }
 
 # Streamlit Tabs with icons + neon styles
@@ -262,7 +262,7 @@ tab1,tab2,tab3 = st.tabs(list(tab_icons.keys()))
 
 # --------------------------- REPORT 1 TAB ---------------------------
 with tab1:
-    st.markdown('<h1 class="header">Sales Summary with RBM and BDM</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="header">OSG All Store Report</h1>', unsafe_allow_html=True)
     
     with st.container():
         st.markdown("""
@@ -502,7 +502,7 @@ with tab1:
 
 # --------------------------- REPORT 2 TAB ---------------------------
 with tab2:
-    st.markdown('<h1 class="header">Store Summary Report</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="header">OSG Future Store Report</h1>', unsafe_allow_html=True)
     
     with st.container():
         st.markdown("""
